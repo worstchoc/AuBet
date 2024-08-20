@@ -9,6 +9,11 @@ MARKETS = 'totals'  # Only include totals (over/under) markets
 TIME_THRESHOLD = 5  # Threshold in minutes for considering the odds as up-to-date
 STAKE = 100  # Fixed stake amount in dollars
 
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', None)
+
+
 def fetch_odds():
     url = f'https://api.the-odds-api.com/v4/sports/{SPORT}/odds'
     params = {
