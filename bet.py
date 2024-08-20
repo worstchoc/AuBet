@@ -9,6 +9,12 @@ MARKETS = 'h2h'  # Only include head-to-head (win/loss) markets
 TIME_THRESHOLD = 5  # Threshold in minutes for considering the odds as up-to-date
 STAKE = 100  # Fixed stake amount in dollars
 
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', None)
+
+
+
 def fetch_odds():
     url = f'https://api.the-odds-api.com/v4/sports/{SPORT}/odds'
     params = {
@@ -101,7 +107,6 @@ def find_arbitrage_opportunities(data):
                             if check_arbitrage(win_odds, loss_odds):
                                 arbitrage_opportunities.append({
                                     'teams': teams,
-                                    'league': league,
                                     'commence_time': commence_time,
                                     'market': 'h2h (Win/Loss)',
                                     'outcome1': 'Win',
@@ -112,8 +117,6 @@ def find_arbitrage_opportunities(data):
                                     'odds2': loss_odds,
                                     'last_update1': match['commence_time'],
                                     'last_update2': match['commence_time'],
-                                    'profit_win1': profit_win1,
-                                    'profit_win2': profit_win2,
                                     'roi': roi,
                                     'stake': STAKE
                                 })
