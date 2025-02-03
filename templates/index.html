@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Australian Sportbook Arbitrage Opportunities</title>
+  <style>
+      body {
+          font-family: 'Open Sans', Arial, sans-serif;
+          margin: 0;
+          padding: 20px;
+          display: flex;
+          flex-direction: row;
+          gap: 20px;
+          background-color: #f9f9f9;
+      }
+      h1 {
+          text-align: center;
+          font-size: 24px;
+          border-top: 3px solid #333;
+          padding-top: 10px;
+          color: #333;
+      }
+      #sports-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          width: 200px;
+          border-right: 2px solid #ddd;
+          padding-right: 10px;
+          background-color: #d0f0fd;
+          padding: 20px;
+          border-radius: 8px;
+      }
+      #sports-buttons button {
+          padding: 10px 15px;
+          font-size: 14px;
+          cursor: pointer;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          background-color: #fff;
+          transition: all 0.3s;
+      }
+      #sports-buttons button:hover {
+          background-color: #007BFF;
+          color: #fff;
+      }
+      #content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 20px;
+          background-color: #ffffff;
+          border-radius: 8px;
+          box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      #next-update-timer {
+          font-size: 18px;
+          margin-bottom: 20px;
+          color: #555;
+      }
+      #no-opportunities {
+          font-size: 18px;
+          color: #888;
+          margin-top: 30px;
+      }
+      #opportunities-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+          background-color: #fff;
+          box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      th, td {
+          padding: 10px;
+          text-align: left;
+          border: 1px solid #ddd;
+      }
+      th {
+          background-color: #f4f4f4;
+          color: #333;
+      }
+      tr:nth-child(even) {
+          background-color: #f9f9f9;
+      }
+      #log-section {
+          width: 300px;
+          height: 100vh;
+          overflow-y: auto;
+          background-color: #f9f9f9;
+          border-left: 2px solid #ddd;
+          padding: 20px;
+          box-shadow: -2px 0px 6px rgba(0, 0, 0, 0.1);
+          border-radius: 8px;
+      }
+      #log-list li {
+          margin-bottom: 15px;
+          padding: 15px;
+          background-color: #fff;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
+      }
+  </style>
+</head>
+<body>
+  <!-- Sports buttons on the left -->
+  <div id="sports-buttons">
+      <h3>Sports</h3>
+      {% for sport in sports %}
+      <button type="button" onclick="fetchOpportunities('{{ sport }}')">{{ sport }}</button>
+
+      {% endfor %}
+  </div>
+
+  <!-- Main content on the right -->
+  <div id="content">
+      <h1>Australian Sportbook Arbitrage Opportunities</h1>
+      <!-- Countdown timer for next update -->
+      <div id="next-update-timer"></div>
+
+      <!-- Message when no arbitrage opportunities are found -->
+      <div id="no-opportunities">No arbitrage opportunities found.</div>
+
+      <!-- Table for displaying arbitrage opportunities -->
+      <table id="opportunities-table">
+          <thead>
+              <tr>
+                  <th>Teams</th>
+                  <th>League</th>
+                  <th>Commence Time (AEST)</th>
+                  <th>Market</th>
+                  <th>Outcome 1</th>
+                  <th>Outcome 2</th>
+                  <th>Bookmaker 1</th>
+                  <th>Bookmaker 2</th>
+                  <th>Odds 1</th>
+                  <th>Odds 2</th>
+                  <th>Profit (Outcome 1)</th>
+                  <th>Profit (Outcome 2)</th>
+                  <th>ROI (%)</th>
+              </tr>
+          </thead>
+          <tbody>
+              <!-- Rows will be populated dynamically -->
+          </tbody>
+      </table>
+  </div>
+
+  <!-- Log section on the right -->
+  <div id="log-section">
+      <h3>Logs</h3>
+      <ul id="log-list">
+          <!-- Logs will be populated dynamically -->
+      </ul>
+  </div>
+
+  <script>
+    async function fetchOpportunities(sport) {
+        const button = document.querySelector(`#sports-buttons button[onclick="fetchOpportunities('${sport}')"]`);
+        button.textContent = 'Fetching...';
+        button.disabled = true;
+
+        try {
+            // Fetch data from the backend
+            const response = await fetch(`/fetch-opportunities?sport=${sport}`);
+            const data = await response.json();
+
+            // Clear previous table rows and logs
+            const tableBody = document.querySelector('#opportunities-table tbody');
+            tableBody.innerHTML = '';
+            const logList = document.getElementById('log-list');
+            logList.innerHTML = '';
+
+            // Display arbitrage opportunities in the table
+            if (data.arbitrage_opportunities.length > 0) {
+                data.arbitrage_opportunities.forEach(opp => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${opp.teams}</td>
+                        <td>${opp.league}</td>
+                        <td>${opp.commence_time}</td>
+                        <td>${opp.market}</td>
+                        <td>${opp.outcome1}</td>
+                        <td>${opp.outcome2}</td>
+                        <td>${opp.bookmaker1}</td>
+                        <td>${opp.bookmaker2}</td>
+                        <td>${opp.odds1}</td>
+                        <td>${opp.odds2}</td>
+                        <td>${opp.profit_win1.toFixed(2)}</td>
+                        <td>${opp.profit_win2.toFixed(2)}</td>
+                        <td>${opp.roi.toFixed(2)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                document.getElementById('opportunities-table').style.display = 'table';
+                document.getElementById('no-opportunities').style.display = 'none';
+            } else {
+                document.getElementById('opportunities-table').style.display = 'none';
+                document.getElementById('no-opportunities').style.display = 'block';
+            }
+
+            // Display logs
+            if (data.all_opportunities.length > 0) {
+                data.all_opportunities.forEach(log => {
+                    const logItem = document.createElement('li');
+                    logItem.innerHTML = `
+                        <strong>${log.teams}</strong><br>
+                        Market: ${log.market}<br>
+                        ${log.outcome1} (${log.odds1}) vs ${log.outcome2} (${log.odds2})<br>
+                        Bookmakers: ${log.bookmaker1} & ${log.bookmaker2}<br>
+                        ROI: ${log.roi.toFixed(2)}%
+                    `;
+                    logList.appendChild(logItem);
+                });
+            }
+
+            // Setup countdown timer for next update if available
+            if (data.time_remaining != null) {
+                startCountdown(data.time_remaining);
+            } else {
+                document.getElementById('next-update-timer').innerText = '';
+            }
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            alert('An error occurred while fetching data.');
+        } finally {
+            button.textContent = sport;
+            button.disabled = false;
+        }
+    }
+
+    let countdownInterval;
+    function startCountdown(timeRemaining) {
+        clearInterval(countdownInterval);
+        const timerDiv = document.getElementById('next-update-timer');
+        let remaining = timeRemaining;
+        function updateTimer() {
+            if (remaining <= 0) {
+                timerDiv.innerText = "Odds just updated!";
+                clearInterval(countdownInterval);
+                return;
+            }
+            const hours = Math.floor(remaining / 3600);
+            const minutes = Math.floor((remaining % 3600) / 60);
+            const seconds = Math.floor(remaining % 60);
+            timerDiv.innerText = `Next update in: ${hours}h ${minutes}m ${seconds}s`;
+            remaining--;
+        }
+        updateTimer();
+        countdownInterval = setInterval(updateTimer, 1000);
+    }
+  </script>
+</body>
+</html>

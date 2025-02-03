@@ -1,7 +1,12 @@
 import requests
+from datetime import datetime, timedelta, timezone
+import pytz
+import json
+
+
 
 API_KEY = '8a7da33a9d9cdc48234d7cd8a591f7cd'
-SPORT = 'upcoming'  # You can specify a particular sport or keep 'upcoming' to get all upcoming events
+SPORT = 'basketball_nba'  # You can specify a particular sport or keep 'upcoming' to get all upcoming events
 REGIONS = 'au'  # Australian region
 
 def fetch_matches():
@@ -14,8 +19,18 @@ def fetch_matches():
     }
     response = requests.get(url, params=params)
     data = response.json()
-    print(data)  # Print the raw data to inspect the structure
+    print(data)
     return data
+
+def convert_to_aest(commence_time):
+    # Parse the UTC time from the API
+    utc_time = datetime.fromisoformat(commence_time.replace('Z', '+00:00'))
+    # Convert UTC to AEST
+    aest_offset = timezone(timedelta(hours=10))
+    aest_zone = pytz.timezone('Australia/Sydney')
+    aest_time = utc_time.astimezone(aest_offset)
+    return aest_time.strftime('%Y-%m-%d %H:%M:%S')  # Format the time as desired
+
 
 def print_matches(matches):
     # Adjust depending on the data structure
@@ -23,10 +38,12 @@ def print_matches(matches):
         if isinstance(match, dict):  # Ensure match is a dictionary
             teams = match.get('home_team', 'Unknown Team') + ' vs ' + match.get('away_team', 'Unknown Team')
             commence_time = match.get('commence_time', 'Unknown Time')
+            commence_time_aest = convert_to_aest(commence_time)
+
             league = match.get('sport_nice', 'Unknown League')
             print(f"League: {league}")
             print(f"Match: {teams}")
-            print(f"Commence Time: {commence_time}")
+            print(f"Commence Time: {commence_time_aest}")
             
             for bookmaker in match.get('bookmakers', []):
                 print(f"Bookmaker: {bookmaker['title']}")

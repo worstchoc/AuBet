@@ -4,7 +4,7 @@ from datetime import datetime
 import pytz
 
 API_KEY = '8a7da33a9d9cdc48234d7cd8a591f7cd'
-SPORT = 'upcoming'  # Change this to the specific sport you are interested in
+SPORT = 'basketball_nba'  # Change this to the specific sport you are interested in
 REGIONS = 'au'  # Australian region
 MARKETS = 'totals'  # Only include totals (over/under) markets
 TIME_THRESHOLD = 5  # Threshold in minutes for considering the odds as up-to-date
