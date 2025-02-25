@@ -7,12 +7,19 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
-API_KEY5 = '5cf3f3f76908a816e01f63c75d31155f'
-API_KEY4 = 'c82096ea7ad53c56496e186ab2f0d220'
-API_KEY3 = '421148b2d1d0e8011cfc4ff48ed24a29'
-API_KEY2 = '56055190125d6193cd689437a531a0c5'
-API_KEY1 = 'fdc5fe0b12f3aede43825dbfd23563fa'
-API_KEY = '8a7da33a9d9cdc48234d7cd8a591f7cd'
+API_KEYS = [
+    '8a7da33a9d9cdc48234d7cd8a591f7cd',  # API_KEY0
+    'fdc5fe0b12f3aede43825dbfd23563fa',  # API_KEY1
+    '56055190125d6193cd689437a531a0c5',  # API_KEY2
+    '421148b2d1d0e8011cfc4ff48ed24a29',  # API_KEY3
+    'c82096ea7ad53c56496e186ab2f0d220',  # API_KEY4
+    '5cf3f3f76908a816e01f63c75d31155f',  # API_KEY5
+    'eacb709afa8bb86714d6f9110221211b', # API_KEY6
+    '982f085304dcfad87fe724350b51978f', # API_KEY7
+]
+
+# Track the index of the current API key
+api_key_index = 2
 REGIONS = 'au'  # Australian region
 MARKETS = ['h2h', 'totals']  # Include both head-to-head and totals markets
 TIME_THRESHOLD = 5  # Threshold in minutes for considering the odds as up-to-date
@@ -23,30 +30,105 @@ cached_data = {}
 next_update_times = {}
 
 def fetch_odds(sport):
+    global api_key_index
+    
+    # Select the current API key
+    api_key = API_KEYS[api_key_index]
+
+    # Rotate to the next API key
+    #api_key_index = (api_key_index + 1) % len(API_KEYS)
+    api_key_index = 2
     url = f'https://api.the-odds-api.com/v4/sports/{sport}/odds'
     params = {
-        'api_key': API_KEY,
+        'api_key': api_key,
         'regions': REGIONS,
         'markets': ','.join(MARKETS),
         'oddsFormat': 'decimal'
     }
+    
     response = requests.get(url, params=params)
+
+    # Extract quota usage headers
+    requests_remaining = response.headers.get('x-requests-remaining', 'N/A')
+    requests_last = response.headers.get('x-requests-last', 'N/A')
+
+    # Log quota usage
+    print(f"[API Key: {api_key}] Sport: {sport}")
+    print(f"Remaining requests: {requests_remaining}")
+    print(f"Last request cost: {requests_last}\n")
+
     return response.json()
+
+
+def fetch_btts_dnb_odds(sport, event_id):
+    global api_key_index
+
+    api_key =  API_KEYS[2]
+    api_key_index = (api_key_index + 1) % len(API_KEYS)
+
+    url = f"https://api.the-odds-api.com/v4/sports/{sport}/events/{event_id}/odds"
+    params = {
+        "api_key": api_key,
+        "markets": "btts,draw_no_bet",  # Only fetch these markets
+        "regions": REGIONS,  # ✅ Add this to avoid "MISSING_REGION" error
+        "oddsFormat": "decimal"
+    }
+
+    response = requests.get(url, params=params)
+    if response.status_code != 200:
+        print(f"⚠ ERROR: Could not fetch odds for event {event_id} in {sport}: {response.json()}")
+        return []
+
+    odds_data = response.json()
+    print(f"✅ Retrieved BTTS & DNB odds for event {event_id} in {sport}")
+    return odds_data  # This returns a list, which leads to Issue 2
+
+
+
+def fetch_sport_events(sport):
+    global api_key_index
+
+    api_key = API_KEYS[2]
+    api_key_index = (api_key_index + 1) % len(API_KEYS)
+
+    url = f"https://api.the-odds-api.com/v4/sports/{sport}/events"
+    params = {
+        "api_key": api_key
+    }
+
+    response = requests.get(url, params=params)
+    if response.status_code != 200:
+        print(f"⚠ ERROR: Could not fetch events for {sport}: {response.json()}")
+        return []
+
+    events = response.json()
+    event_ids = [event["id"] for event in events]  # Extract event IDs
+    print(f"✅ Fetched {len(event_ids)} events for {sport}")
+    return event_ids
+
 
 def calculate_implied_probability(odds):
     return 1 / odds
 
 def convert_to_aest(utc_time_str):
-    utc_time = datetime.strptime(utc_time_str, "%Y-%m-%dT%H:%M:%SZ")
-    utc_zone = pytz.timezone('UTC')
-    utc_time = utc_zone.localize(utc_time)
+    if utc_time_str == "N/A":  # ✅ Handle missing commence_time
+        return "Unknown Time"
 
-    # Convert to AEST
-    aest_zone = pytz.timezone('Australia/Sydney')
-    aest_time = utc_time.astimezone(aest_zone)
+    try:
+        utc_time = datetime.strptime(utc_time_str, "%Y-%m-%dT%H:%M:%SZ")
+        utc_zone = pytz.timezone('UTC')
+        utc_time = utc_zone.localize(utc_time)
 
-    # Format the time as a string
-    return aest_time.strftime('%Y-%m-%d %H:%M:%S')
+        # Convert to AEST
+        aest_zone = pytz.timezone('Australia/Sydney')
+        aest_time = utc_time.astimezone(aest_zone)
+
+        # Format the time as a string
+        return aest_time.strftime('%Y-%m-%d %H:%M:%S')
+    except ValueError:
+        print(f"⚠ Error: Invalid datetime format for {utc_time_str}")
+        return "Invalid Date"
+
 
 def calculate_profit_and_roi(odds1, odds2, stake):
     total_stake = stake
@@ -196,13 +278,42 @@ def fetch_odds_periodically(sport):
     cached_data[sport] = fetch_odds(sport)
     next_update_times[sport] = datetime.now() + timedelta(hours=12)
 
+
+
+
+
+
+
 # List of sports to monitor
+
+SPORTS_WITH_BTTS_DNB = [
+    'soccer_epl',
+    'soccer_germany_bundesliga',
+    'soccer_italy_serie_a',
+    'soccer_uefa_champs_league',
+    'soccer_spain_la_liga',
+    'soccer_france_ligue_one',
+    'soccer_usa_mls'
+]
+
+
 sports = [
     'americanfootball_nfl',
+    'basketball_nba',
+    'basketball_nbl	',
+    'soccer_epl',
+    'soccer_germany_bundesliga',
+    'soccer_italy_serie_a',
+    'soccer_usa_mls',
+    'soccer_france_ligue_one',
     'aussierules_afl',
     'baseball_mlb',
     'soccer_australia_aleague',
     'soccer_uefa_champs_league',
+    'rugbyleague_nrl',
+    'tennis_atp_us_open',
+    'mma_mixed_martial_arts',
+    'tennis_atp_aus_open_singles',
     'soccer_spain_la_liga'
 ]
 
@@ -240,7 +351,11 @@ def fetch_opportunities():
         return jsonify({'error': 'Data not available yet'}), 503
 
 if __name__ == '__main__':
-    # Immediately fetch odds for all sports at startup
+    print("✅ API Scheduler Started - First API call will happen immediately.")
+    
+    # ✅ Force API fetch immediately when the server starts
     for sport in sports:
-        fetch_odds_periodically(sport)
+        scheduler.add_job(fetch_odds_periodically, 'date', run_date=datetime.now(), args=[sport])
+    
     app.run(debug=True)
+
