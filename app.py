@@ -1,4 +1,5 @@
 from flask import Flask, render_template, jsonify, request
+import os
 import requests
 from datetime import datetime, timedelta
 import pytz
@@ -18,6 +19,7 @@ API_KEYS = [
     '982f085304dcfad87fe724350b51978f', # API_KEY7
 ]
 
+FETCH_ON_STARTUP=False
 # Track the index of the current API key
 api_key_index = 2
 REGIONS = 'au'  # Australian region
@@ -112,7 +114,7 @@ def calculate_implied_probability(odds):
 
 def convert_to_aest(utc_time_str):
     if utc_time_str == "N/A":  # ✅ Handle missing commence_time
-        return "Unknown Time"
+        return "Unknown Time" 
 
     try:
         utc_time = datetime.strptime(utc_time_str, "%Y-%m-%dT%H:%M:%SZ")
@@ -278,12 +280,6 @@ def fetch_odds_periodically(sport):
     cached_data[sport] = fetch_odds(sport)
     next_update_times[sport] = datetime.now() + timedelta(hours=12)
 
-
-
-
-
-
-
 # List of sports to monitor
 
 SPORTS_WITH_BTTS_DNB = [
@@ -323,9 +319,17 @@ for sport in sports:
     scheduler.add_job(fetch_odds_periodically, 'interval', minutes=720, args=[sport])
 scheduler.start()
 
+
+
+
+
 @app.route('/')
-def index():
-    return render_template('index.html', sports=sports)
+def home():
+    return render_template('home.html')
+
+@app.route('/arbitrage')
+def arbitrage():
+    return render_template('arbitrage.html', sports=sports)
 
 @app.route('/fetch-opportunities')
 def fetch_opportunities():
@@ -351,11 +355,16 @@ def fetch_opportunities():
         return jsonify({'error': 'Data not available yet'}), 503
 
 if __name__ == '__main__':
-    print("✅ API Scheduler Started - First API call will happen immediately.")
+    print("✅ API Scheduler Started")
     
-    # ✅ Force API fetch immediately when the server starts
-    for sport in sports:
-        scheduler.add_job(fetch_odds_periodically, 'date', run_date=datetime.now(), args=[sport])
+    # Toggle initial API fetch with environment variable
+    if os.environ.get('FETCH_ON_STARTUP', 'False').lower() == 'true':
+        print("🔔 Initial API fetch enabled")
+        # Immediately fetch data for all sports on startup
+        for sport in sports:
+            scheduler.add_job(fetch_odds_periodically, 'date', run_date=datetime.now(), args=[sport])
+    else:
+        print("🔕 Initial API fetch disabled - first update will occur in 12 hours")
     
     app.run(debug=True)
 
